@@ -83,7 +83,36 @@ export default function VolatilityView({
 
   const colors = isDarkMode ? bloombergColors.dark : bloombergColors.light;
 
-  // Calculate volatility metrics from market data
+  // --- NEW: Early returns for loading/error states ---
+  if (isLoading) {
+    return (
+      <div className={`min-h-screen font-mono bg-[${colors.background}] text-[${colors.text}]`}>
+        <div className="p-8 flex justify-center items-center">
+          <RefreshCw className={`h-6 w-6 animate-spin text-[${colors.accent}]`} />
+        </div>
+      </div>
+    );
+  }
+
+  // Check if marketData is missing or empty
+  const hasAnyData = marketData?.americas?.length || marketData?.emea?.length || marketData?.asiaPacific?.length;
+  if (!hasAnyData) {
+    return (
+      <div className={`min-h-screen font-mono bg-[${colors.background}] text-[${colors.text}]`}>
+        <div className={`flex items-center gap-2 bg-[${colors.surface}] px-2 py-1`}>
+          <BloombergButton color="default" onClick={onBack}>
+            <ArrowLeft className="h-3 w-3 mr-1" />
+            BACK
+          </BloombergButton>
+          <span className="text-sm font-bold">GLOBAL VOLATILITY</span>
+        </div>
+        <div className="p-8 text-center">No market data available.</div>
+      </div>
+    );
+  }
+  // --- End of early returns ---
+
+  // Calculate volatility metrics from market data (only runs when marketData exists)
   useEffect(() => {
     const calculateVolatilityData = () => {
       const result: VolatilityData[] = [];
@@ -91,14 +120,13 @@ export default function VolatilityView({
       // Process Americas
       if (marketData.americas) {
         for (const index of marketData.americas) {
-          // Generate realistic volatility metrics based on existing data
           const historicalVol = generateHistoricalVolatility(index);
-          const impliedVol = historicalVol * (1 + (Math.random() * 0.4 - 0.2)); // IV is usually close to HV but can vary
-          const volRatio = historicalVol / (10 + Math.random() * 5); // Compare to baseline volatility
+          const impliedVol = historicalVol * (1 + (Math.random() * 0.4 - 0.2));
+          const volRatio = historicalVol / (10 + Math.random() * 5);
           const volTrend = Math.random() > 0.5 ? "up" : Math.random() > 0.5 ? "down" : "stable";
-          const dailyRange = Math.abs(index.pctChange) * (0.8 + Math.random() * 0.4); // Daily high-low range
-          const weeklyRange = dailyRange * (2 + Math.random()); // Weekly range is larger than daily
-          const rsi = 30 + Math.random() * 40; // RSI between 30 and 70 typically
+          const dailyRange = Math.abs(index.pctChange) * (0.8 + Math.random() * 0.4);
+          const weeklyRange = dailyRange * (2 + Math.random());
+          const rsi = 30 + Math.random() * 40;
 
           result.push({
             id: index.id,
@@ -110,10 +138,7 @@ export default function VolatilityView({
             dailyRange,
             weeklyRange,
             rsi,
-            sparkline: generateVolatilitySparkline(
-              historicalVol,
-              volTrend as "up" | "down" | "stable"
-            ),
+            sparkline: generateVolatilitySparkline(historicalVol, volTrend as "up" | "down" | "stable"),
             value: index.value,
             change: index.change,
             pctChange: index.pctChange,
@@ -142,10 +167,7 @@ export default function VolatilityView({
             dailyRange,
             weeklyRange,
             rsi,
-            sparkline: generateVolatilitySparkline(
-              historicalVol,
-              volTrend as "up" | "down" | "stable"
-            ),
+            sparkline: generateVolatilitySparkline(historicalVol, volTrend as "up" | "down" | "stable"),
             value: index.value,
             change: index.change,
             pctChange: index.pctChange,
@@ -174,10 +196,7 @@ export default function VolatilityView({
             dailyRange,
             weeklyRange,
             rsi,
-            sparkline: generateVolatilitySparkline(
-              historicalVol,
-              volTrend as "up" | "down" | "stable"
-            ),
+            sparkline: generateVolatilitySparkline(historicalVol, volTrend as "up" | "down" | "stable"),
             value: index.value,
             change: index.change,
             pctChange: index.pctChange,
@@ -192,15 +211,10 @@ export default function VolatilityView({
     setVolatilityData(data);
   }, [marketData]);
 
-  // Generate realistic historical volatility based on market data
   const generateHistoricalVolatility = (index: MarketIndex): number => {
-    // Base volatility on absolute percentage change and add some randomness
     const baseVol = Math.abs(index.pctChange) * (1.5 + Math.random());
-
-    // Add some market-specific adjustments
     let adjustedVol = baseVol;
 
-    // Emerging markets tend to be more volatile
     if (
       index.id.includes("IBOVESPA") ||
       index.id.includes("HANG SENG") ||
@@ -209,7 +223,6 @@ export default function VolatilityView({
       adjustedVol *= 1.3;
     }
 
-    // Major indices tend to be less volatile
     if (
       index.id.includes("S&P 500") ||
       index.id.includes("DOW JONES") ||
@@ -218,23 +231,16 @@ export default function VolatilityView({
       adjustedVol *= 0.8;
     }
 
-    // Ensure volatility is within realistic bounds (5% to 35%)
     return Math.max(5, Math.min(35, adjustedVol));
   };
 
-  // Generate volatility sparkline data
-  const generateVolatilitySparkline = (
-    baseVol: number,
-    trend: "up" | "down" | "stable"
-  ): number[] => {
+  const generateVolatilitySparkline = (baseVol: number, trend: "up" | "down" | "stable"): number[] => {
     const result = [];
-    let currentVol = baseVol * 0.8; // Start a bit lower than current
+    let currentVol = baseVol * 0.8;
 
     for (let i = 0; i < 10; i++) {
-      // Add some randomness
       const noise = (Math.random() - 0.5) * 2;
 
-      // Apply trend
       if (trend === "up") {
         currentVol += baseVol * 0.05 + noise;
       } else if (trend === "down") {
@@ -243,47 +249,28 @@ export default function VolatilityView({
         currentVol += noise;
       }
 
-      // Keep within bounds
       currentVol = Math.max(baseVol * 0.5, Math.min(baseVol * 1.5, currentVol));
-
       result.push(currentVol);
     }
 
-    // Normalize to 0-1 range for sparkline
     const min = Math.min(...result);
     const max = Math.max(...result);
     const range = max - min || 1;
-
     return result.map((val) => (val - min) / range);
   };
 
-  // Filter and sort volatility data
   const getFilteredAndSortedData = () => {
     return volatilityData
       .filter((item) => {
-        // Filter by region
-        if (!showRegions[item.region.toLowerCase()]) {
-          return false;
-        }
-
-        // Filter by volatility level
-        if (filterType === "high" && item.historicalVol < 15) {
-          return false;
-        }
-        if (filterType === "low" && item.historicalVol >= 15) {
-          return false;
-        }
-
+        if (!showRegions[item.region.toLowerCase()]) return false;
+        if (filterType === "high" && item.historicalVol < 15) return false;
+        if (filterType === "low" && item.historicalVol >= 15) return false;
         return true;
       })
       .sort((a, b) => {
-        // Sort by selected field
         const aValue = a[sortField];
         const bValue = b[sortField];
-
-        if (sortOrder === "asc") {
-          return aValue - bValue;
-        }
+        if (sortOrder === "asc") return aValue - bValue;
         return bValue - aValue;
       });
   };
@@ -294,10 +281,8 @@ export default function VolatilityView({
 
   const handleSortFieldChange = (field: "historicalVol" | "volRatio" | "dailyRange") => {
     if (sortField === field) {
-      // Toggle sort order if clicking the same field
       setSortOrder(sortOrder === "desc" ? "asc" : "desc");
     } else {
-      // Set new field and default to descending
       setSortField(field);
       setSortOrder("desc");
     }
@@ -310,7 +295,6 @@ export default function VolatilityView({
     }));
   };
 
-  // Get color class based on volatility level
   const getVolatilityColorClass = (vol: number) => {
     if (vol >= 25) return `text-[${colors.negative}] font-bold`;
     if (vol >= 15) return `text-[${colors.negative}]`;
@@ -318,7 +302,6 @@ export default function VolatilityView({
     return `text-[${colors.positive}]`;
   };
 
-  // Get background class based on volatility level
   const getVolatilityBgClass = (vol: number) => {
     if (vol >= 25) return "bg-red-900/20";
     if (vol >= 15) return "bg-red-900/10";
@@ -326,7 +309,6 @@ export default function VolatilityView({
     return "bg-green-900/10";
   };
 
-  // Get trend icon
   const getTrendIcon = (trend: "up" | "down" | "stable") => {
     if (trend === "up") return <TrendingUp className={`h-3 w-3 text-[${colors.negative}]`} />;
     if (trend === "down") return <TrendingDown className={`h-3 w-3 text-[${colors.positive}]`} />;
