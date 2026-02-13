@@ -70,6 +70,34 @@ export default function MarketMoversView({
 
   const colors = isDarkMode ? bloombergColors.dark : bloombergColors.light;
 
+  // --- Loading / Error states ---
+  if (isLoading) {
+    return (
+      <div className={`min-h-screen font-mono bg-[${colors.background}] text-[${colors.text}]`}>
+        <div className="p-8 flex justify-center items-center">
+          <RefreshCw className={`h-6 w-6 animate-spin text-[${colors.accent}]`} />
+        </div>
+      </div>
+    );
+  }
+
+  const hasAnyData = marketData?.americas?.length || marketData?.emea?.length || marketData?.asiaPacific?.length;
+  if (!hasAnyData) {
+    return (
+      <div className={`min-h-screen font-mono bg-[${colors.background}] text-[${colors.text}]`}>
+        <div className={`flex items-center gap-2 bg-[${colors.surface}] px-2 py-1`}>
+          <BloombergButton color="default" onClick={onBack}>
+            <ArrowLeft className="h-3 w-3 mr-1" />
+            BACK
+          </BloombergButton>
+          <span className="text-sm font-bold">GLOBAL MARKET MOVERS</span>
+        </div>
+        <div className="p-8 text-center">No market data available.</div>
+      </div>
+    );
+  }
+  // --- End loading/error ---
+
   // Process and sort market data
   useEffect(() => {
     // Combine all regions into a single array
@@ -123,6 +151,7 @@ export default function MarketMoversView({
     setSortedIndices(filtered);
   }, [marketData, filterType, sortOrder, minMove, showRegions]);
 
+  // ... rest of component (handlers and JSX) remains exactly the same ...
   const handleFilterChange = (type: "all" | "gainers" | "losers") => {
     setFilterType(type);
   };
@@ -142,7 +171,6 @@ export default function MarketMoversView({
     }));
   };
 
-  // Get movement class based on percentage change
   const getMovementClass = (pctChange: number) => {
     const absChange = Math.abs(pctChange);
     if (absChange >= 3) return "font-bold text-lg";
