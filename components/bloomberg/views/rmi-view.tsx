@@ -10,7 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAtom } from "jotai";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 import {
   currentViewAtom,
@@ -32,13 +32,59 @@ export function RmiView() {
   const [isDarkMode] = useAtom(isDarkModeAtom);
   const [, setCurrentView] = useAtom(currentViewAtom);
   const colors = isDarkMode ? bloombergColors.dark : bloombergColors.light;
-  const { marketData, isLoading, error } = useMarketDataQuery();
+  const { marketData, isLoading, error, refreshData } = useMarketDataQuery();
 
   // RMI-specific state
   const [selectedRegion, setSelectedRegion] = useAtom(rmiSelectedRegionAtom);
   const [selectedSecurity, setSelectedSecurity] = useAtom(rmiSelectedSecurityAtom);
   const [benchmarkIndex, setBenchmarkIndex] = useAtom(rmiBenchmarkIndexAtom);
   const [timeRange, setTimeRange] = useAtom(rmiTimeRangeAtom);
+
+  // Handle back button click
+  const handleBack = () => {
+    setCurrentView("market");
+  };
+
+  // Handle retry
+  const handleRetry = () => {
+    refreshData();
+  };
+
+  // --- Loading state ---
+  if (isLoading) {
+    return (
+      <div className="p-4" style={{ backgroundColor: colors.background, color: colors.text }}>
+        <div className="flex justify-center items-center h-64">
+          <RefreshCw className={`h-8 w-8 animate-spin text-[${colors.accent}]`} />
+        </div>
+      </div>
+    );
+  }
+
+  // --- Error state ---
+  if (error || !marketData) {
+    return (
+      <div className="p-4" style={{ backgroundColor: colors.background, color: colors.text }}>
+        <div className="flex items-center gap-3 mb-4">
+          <BloombergButton color="red" onClick={handleBack} className="flex items-center gap-1">
+            <ArrowLeft className="h-3 w-3" />
+            BACK
+          </BloombergButton>
+          <h2 className="text-lg font-bold">Relative Market Index</h2>
+        </div>
+        <div
+          className="p-4 border rounded-sm"
+          style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+        >
+          <p className="mb-4">Error loading market data: {error?.message || "Unknown error"}</p>
+          <BloombergButton color="accent" onClick={handleRetry}>
+            RETRY
+          </BloombergButton>
+        </div>
+      </div>
+    );
+  }
+  // --- End loading/error ---
 
   // Get all available securities for the selected region
   const securities: MarketItem[] = marketData[selectedRegion] || [];
@@ -71,37 +117,6 @@ export function RmiView() {
     // If currentBenchmarkIsValid is true, benchmarkIndex is already fine.
   }, [selectedSecurity, securities, benchmarkIndex, setBenchmarkIndex]);
 
-  // Handle back button click
-  const handleBack = () => {
-    setCurrentView("market");
-  };
-
-  // Handle loading state
-  if (isLoading) {
-    return (
-      <div className="p-4" style={{ backgroundColor: colors.background }}>
-        <h2 className="text-lg font-bold mb-4">Relative Market Index</h2>
-        <Skeleton className="h-[400px] w-full" />
-      </div>
-    );
-  }
-
-  // Handle error state
-  if (error || !marketData) {
-    return (
-      <div className="p-4" style={{ backgroundColor: colors.background, color: colors.text }}>
-        <h2 className="text-lg font-bold mb-4">Relative Market Index</h2>
-        <div className="p-4 border rounded-sm" style={{ borderColor: colors.border }}>
-          <p>Error loading market data. Please try again later.</p>
-          <BloombergButton color="accent" className="mt-4">
-            RETRY
-          </BloombergButton>
-        </div>
-      </div>
-    );
-  }
-
-  // Get all available securities for the selected region
   // If no security is selected yet, select the first one
   if (!selectedSecurity && securities.length > 0) {
     setSelectedSecurity(securities[0].id);
